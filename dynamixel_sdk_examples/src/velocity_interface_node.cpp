@@ -58,7 +58,7 @@
 
 // Default setting
 #define BAUDRATE 2000000  // Default Baudrate of DYNAMIXEL X series
-#define DEVICE_NAME "/dev/ttyUSB0"  // [Linux]: "/dev/ttyUSB*", [Windows]: "COM*"
+#define DEVICE_NAME "/dev/U2D2"
 
 
 using namespace std::chrono_literals;
