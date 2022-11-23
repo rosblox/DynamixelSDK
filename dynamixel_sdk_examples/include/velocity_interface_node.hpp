@@ -23,6 +23,7 @@
 #include "dynamixel_sdk/dynamixel_sdk.h"
 
 #include "std_msgs/msg/int32.hpp"
+#include "std_srvs/srv/trigger.hpp"
 #include "dynamixel_sdk_custom_interfaces/msg/set_velocity.hpp"
 
 
@@ -42,10 +43,16 @@ private:
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr present_position_publisher_;
 
+  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr set_homing_position_service_;
+
   void timer_callback();
   void no_velocity_command_timer_callback();
 
-  uint8_t present_id;
+void reset_coming_position_callback(
+  const std::shared_ptr<std_srvs::srv::Trigger::Request> request, 
+  std::shared_ptr<std_srvs::srv::Trigger::Response> response);
+  
+    uint8_t present_id;
   int present_position;
 };
 
