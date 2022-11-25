@@ -87,7 +87,7 @@ VelocityInterfaceNode::VelocityInterfaceNode()
 
   set_velocity_subscriber_ =
     this->create_subscription<SetVelocity>(
-    "set_velocity",
+    "dynamixel/set_velocity",
     QOS_RKL10V,
     [this](const SetVelocity::SharedPtr msg) -> void
     {
@@ -121,12 +121,12 @@ VelocityInterfaceNode::VelocityInterfaceNode()
 
     no_velocity_command_timer_ = this->create_wall_timer(2500ms, std::bind(&VelocityInterfaceNode::no_velocity_command_timer_callback, this));
 
-    present_position_publisher_ = this->create_publisher<std_msgs::msg::Int32>("present_position", 10);
+    present_position_publisher_ = this->create_publisher<std_msgs::msg::Int32>("dynamixel/present_position", 10);
     timer_ = this->create_wall_timer(100ms, std::bind(&VelocityInterfaceNode::timer_callback, this));
 
     set_homing_position_service_ = 
       this->create_service<std_srvs::srv::Trigger>(
-            "reset_homing_position", 
+            "dynamixel/reset_homing_position", 
             std::bind(&VelocityInterfaceNode::reset_coming_position_callback, 
             this,
             std::placeholders::_1, 
