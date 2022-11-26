@@ -157,6 +157,13 @@ void VelocityInterfaceNode::trigger_lighter_callback(
   const std::shared_ptr<std_srvs::srv::Trigger::Request>, 
   std::shared_ptr<std_srvs::srv::Trigger::Response>){
 
+
+    if(!isSetup){
+      setupDynamixelPositionMode(LIGHTER_ID);
+      isSetup = true;
+    }
+
+
     uint32_t next_lighter_position = isLighterOn ? 1626 : 850;
 
     // Write Goal Position (length : 4 bytes)
@@ -389,7 +396,6 @@ int main(int argc, char * argv[])
   }
 
   setupDynamixel(BROADCAST_ID);
-  setupDynamixelPositionMode(LIGHTER_ID);
 
   rclcpp::init(argc, argv);
 

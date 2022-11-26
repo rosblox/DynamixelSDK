@@ -55,6 +55,7 @@ private:
   void trigger_lighter_callback(
     const std::shared_ptr<std_srvs::srv::Trigger::Request>, 
     std::shared_ptr<std_srvs::srv::Trigger::Response>);
+  bool isSetup = false;
   bool isLighterOn = false;
 
   void reset_coming_position_callback(
