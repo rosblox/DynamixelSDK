@@ -27,6 +27,9 @@
 #include "dynamixel_sdk_custom_interfaces/msg/set_velocity.hpp"
 
 
+void setupDynamixelPositionMode(uint8_t dxl_id);
+
+
 class VelocityInterfaceNode : public rclcpp::Node
 {
 public:
@@ -44,14 +47,20 @@ private:
   rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr present_position_publisher_;
 
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr set_homing_position_service_;
+  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr trigger_lighter_service_;
 
   void timer_callback();
   void no_velocity_command_timer_callback();
 
-void reset_coming_position_callback(
-  const std::shared_ptr<std_srvs::srv::Trigger::Request> request, 
-  std::shared_ptr<std_srvs::srv::Trigger::Response> response);
-  
+  void trigger_lighter_callback(
+    const std::shared_ptr<std_srvs::srv::Trigger::Request>, 
+    std::shared_ptr<std_srvs::srv::Trigger::Response>);
+  bool isLighterOn = false;
+
+  void reset_coming_position_callback(
+    const std::shared_ptr<std_srvs::srv::Trigger::Request>, 
+    std::shared_ptr<std_srvs::srv::Trigger::Response>);
+    
     uint8_t present_id;
   int present_position;
 };

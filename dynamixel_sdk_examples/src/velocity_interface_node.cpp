@@ -44,6 +44,7 @@
 #define ADDR_HOMING_OFFSET 20
 #define ADDR_TORQUE_ENABLE 64
 #define ADDR_GOAL_VELOCITY 104
+#define ADDR_GOAL_POSITION 116
 #define ADDR_VELOCITY_LIMIT 44
 #define ADDR_PRESENT_POSITION 132
 
@@ -52,6 +53,7 @@
 
 // Protocol parameter
 #define PARAM_VELOCITY_CONTROL_MODE 1
+#define PARAM_POSITION_CONTROL_MODE 3
 #define PARAM_TORQUE_ENABLE_FALSE 0
 #define PARAM_TORQUE_ENABLE_TRUE 1
 #define PARAM_VELOCITY_LIMIT_MAX 255
@@ -60,6 +62,8 @@
 // Default setting
 #define BAUDRATE 2000000  // Default Baudrate of DYNAMIXEL X series
 #define DEVICE_NAME "/dev/U2D2"
+
+#define LIGHTER_ID 17
 
 
 using namespace std::chrono_literals;
@@ -133,6 +137,14 @@ VelocityInterfaceNode::VelocityInterfaceNode()
             std::placeholders::_2)
           );
 
+    trigger_lighter_service_ = 
+      this->create_service<std_srvs::srv::Trigger>(
+            "dynamixel/trigger_lighter", 
+            std::bind(&VelocityInterfaceNode::trigger_lighter_callback, 
+            this,
+            std::placeholders::_1, 
+            std::placeholders::_2)
+          );
 
 }
 
@@ -141,9 +153,41 @@ VelocityInterfaceNode::~VelocityInterfaceNode(){
 
 }
 
+void VelocityInterfaceNode::trigger_lighter_callback(
+  const std::shared_ptr<std_srvs::srv::Trigger::Request>, 
+  std::shared_ptr<std_srvs::srv::Trigger::Response>){
+
+    uint32_t next_lighter_position = isLighterOn ? 1626 : 850;
+
+    // Write Goal Position (length : 4 bytes)
+    // When writing 2 byte data to AX / MX(1.0), use write2ByteTxRx() instead.
+    dxl_comm_result =
+    packetHandler->write4ByteTxRx(
+      portHandler,
+      LIGHTER_ID,
+      ADDR_GOAL_POSITION,
+      next_lighter_position,
+      &dxl_error
+    );
+
+    if (dxl_comm_result != COMM_SUCCESS) {
+      RCLCPP_INFO(this->get_logger(), "%s", packetHandler->getTxRxResult(dxl_comm_result));
+    } else if (dxl_error != 0) {
+      RCLCPP_INFO(this->get_logger(), "%s", packetHandler->getRxPacketError(dxl_error));
+    } else {
+      RCLCPP_INFO(this->get_logger(), "Set [ID: %d] [Goal Position: %d]", LIGHTER_ID, next_lighter_position);
+    }
+
+    isLighterOn = !isLighterOn;
+
+    return;
+
+  }
+
+
 void VelocityInterfaceNode::reset_coming_position_callback(
-  const std::shared_ptr<std_srvs::srv::Trigger::Request> request, 
-  std::shared_ptr<std_srvs::srv::Trigger::Response> response){
+  const std::shared_ptr<std_srvs::srv::Trigger::Request>, 
+  std::shared_ptr<std_srvs::srv::Trigger::Response>){
 
   // Get current homing offset
   int present_homing_offset;
@@ -160,14 +204,13 @@ void VelocityInterfaceNode::reset_coming_position_callback(
   // Disable Torque of DYNAMIXEL
   packetHandler->write1ByteTxRx(
     portHandler,
-    BROADCAST_ID,
+    present_id,
     ADDR_TORQUE_ENABLE,
     PARAM_TORQUE_ENABLE_FALSE,
     &dxl_error
   );
 
   
-
   // Set homing offset
   uint32_t new_homing_offset = (unsigned int) - (present_position - present_homing_offset);
 
@@ -190,7 +233,7 @@ void VelocityInterfaceNode::reset_coming_position_callback(
   // Enable Torque of DYNAMIXEL
   packetHandler->write1ByteTxRx(
     portHandler,
-    BROADCAST_ID,
+    present_id,
     ADDR_TORQUE_ENABLE,
     PARAM_TORQUE_ENABLE_TRUE,
     &dxl_error
@@ -242,6 +285,50 @@ void VelocityInterfaceNode::timer_callback()
   auto message = std_msgs::msg::Int32();
   message.data = present_position;
   present_position_publisher_->publish(message);
+}
+
+
+void setupDynamixelPositionMode(uint8_t dxl_id)
+{
+
+  // Disable Torque of DYNAMIXEL
+  packetHandler->write1ByteTxRx(
+    portHandler,
+    dxl_id,
+    ADDR_TORQUE_ENABLE,
+    PARAM_TORQUE_ENABLE_FALSE,
+    &dxl_error
+  );
+
+  // Use Position Control Mode
+  dxl_comm_result = packetHandler->write1ByteTxRx(
+    portHandler,
+    dxl_id,
+    ADDR_OPERATING_MODE,
+    PARAM_POSITION_CONTROL_MODE,
+    &dxl_error
+  );
+
+  if (dxl_comm_result != COMM_SUCCESS) {
+    RCLCPP_ERROR(rclcpp::get_logger("velocity_interface_node"), "Failed to set Position Control Mode.");
+  } else {
+    RCLCPP_INFO(rclcpp::get_logger("velocity_interface_node"), "Succeeded to set Position Control Mode.");
+  }
+
+  // Enable Torque of DYNAMIXEL
+  dxl_comm_result = packetHandler->write1ByteTxRx(
+    portHandler,
+    dxl_id,
+    ADDR_TORQUE_ENABLE,
+    PARAM_TORQUE_ENABLE_TRUE,
+    &dxl_error
+  );
+
+  if (dxl_comm_result != COMM_SUCCESS) {
+    RCLCPP_ERROR(rclcpp::get_logger("velocity_interface_node"), "Failed to enable torque.");
+  } else {
+    RCLCPP_INFO(rclcpp::get_logger("velocity_interface_node"), "Succeeded to enable torque.");
+  }
 }
 
 
@@ -302,6 +389,7 @@ int main(int argc, char * argv[])
   }
 
   setupDynamixel(BROADCAST_ID);
+  setupDynamixelPositionMode(LIGHTER_ID);
 
   rclcpp::init(argc, argv);
 
